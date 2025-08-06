@@ -1,0 +1,8 @@
+langgraph
+openai
+pydantic
+python-dotenv
+langchain-openai
+playwright
+beautifulsoup4
+lxml
