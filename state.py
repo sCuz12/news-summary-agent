@@ -14,3 +14,4 @@ class NewsAgentState(BaseModel):
     articles: List[Article] = Field(default_factory=list)
     summaries: List[str] = []
     script_text : Optional[str] = None
+    video_headlines :List[str] = Field(default_factory=list)

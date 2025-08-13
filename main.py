@@ -7,6 +7,7 @@ from nodes.scrape_articles import scrape_articles
 from nodes.generate_voiceover_script import generate_instagram_script
 from nodes.summarize_articles import summarize_articles
 from nodes.send_email import send_email
+from nodes.generate_video_headlines import generate_video_headlines
 
 
 def main() :
@@ -26,10 +27,12 @@ def main() :
     graph.add_node("summarize_articles",summarize_articles)
     graph.add_node("send_email",send_email)
     graph.add_node("generate_voiceover_script",generate_instagram_script)
+    graph.add_node("generate_video_headlines",generate_video_headlines)
 
     graph.add_edge("scrape_articles","summarize_articles")
     graph.add_edge("summarize_articles","send_email")
     graph.add_edge("send_email","generate_voiceover_script")
+    graph.add_edge("generate_voiceover_script","generate_video_headlines")
 
     # Step 2: Compile the graph
     app = graph.compile()
