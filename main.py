@@ -4,6 +4,7 @@ from state import NewsAgentState
 from topics import get_sources_for_topic
 from langgraph.graph import StateGraph
 from nodes.scrape_articles import scrape_articles
+from nodes.generate_voiceover_script import generate_instagram_script
 from nodes.summarize_articles import summarize_articles
 from nodes.send_email import send_email
 
@@ -24,9 +25,11 @@ def main() :
     graph.set_entry_point("scrape_articles")
     graph.add_node("summarize_articles",summarize_articles)
     graph.add_node("send_email",send_email)
+    graph.add_node("generate_voiceover_script",generate_instagram_script)
 
     graph.add_edge("scrape_articles","summarize_articles")
     graph.add_edge("summarize_articles","send_email")
+    graph.add_edge("send_email","generate_voiceover_script")
 
     # Step 2: Compile the graph
     app = graph.compile()

@@ -3,8 +3,6 @@ TOPIC_SOURCES: dict[str, list[str]] = {
     "techcrunch-latest": [
         "https://techcrunch.com",
         
-        # "https://www.theverge.com/tech",
-        # "https://news.ycombinator.com",
     ],
     "techcrunch-startup" : [
        "https://techcrunch.com/category/startups/"

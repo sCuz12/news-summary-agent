@@ -1,11 +1,13 @@
 from .cyprus_mail import CyprusMailScraper
 from .techcrunch import TechCrunchScraper
+from .business_insider import Business_Insider
 from .base import BaseScraper
 from typing import List
 
 SCRAPERS: List[BaseScraper] = [
     CyprusMailScraper(),
     TechCrunchScraper(),
+    Business_Insider(),
     # Add TechCrunchScraper, VergeScraper, etc. here
 ]
 

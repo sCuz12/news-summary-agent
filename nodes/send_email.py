@@ -31,5 +31,5 @@ def send_email(state: NewsAgentState) -> NewsAgentState:
         HtmlBody=html
         )
 
-    print("✅ Email sent successfully.")
+    print("✅ Email sent. Handing off to Script Agent.")    
     return state

@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict,Optional
 from pydantic import BaseModel,Field
 
 
@@ -13,3 +13,4 @@ class NewsAgentState(BaseModel):
     sources: List[str]
     articles: List[Article] = Field(default_factory=list)
     summaries: List[str] = []
+    script_text : Optional[str] = None
