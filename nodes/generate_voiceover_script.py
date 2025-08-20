@@ -1,71 +1,186 @@
 # nodes/generate_instagram_script.py
+from __future__ import annotations
 from textwrap import dedent
 from state import NewsAgentState
 from openai import OpenAI
-import os
-from datetime import datetime,timezone
+import os, random, time, re
+from datetime import datetime, timezone
 from dotenv import load_dotenv
+
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# ===== Prosody-aware building blocks =====
+HOOKS = [
+    "Coffee in hand? Let’s fly through today’s tech in under a minute.",
+    "Blink and you’ll miss it—here are the 5 biggest tech moves today.",
+    "Quick hit of tech you can actually use—ready?",
+    "Your 60-second tech upgrade starts now.",
+]
+
+TRANSITIONS = [
+    "Next up—", "Meanwhile—", "In other news—", "Also—", "And finally—"
+]
+
+CTAS = [
+    "Follow Tech Brief AI for tomorrow’s top tech stories.",
+    "Tap follow for your daily 60-second tech brief.",
+    "Follow Tech Brief AI—back tomorrow with the need-to-know.",
+    "Hit follow so you never miss the daily tech rundown."
+]
+
+STYLE_PRESETS = {
+    # Uses punctuation and rhythm TTS respects (commas, em dashes, ellipses, short lines).
+    "punchy": dict(
+        sentence_max=18,
+        wpm=165,   # rough pacing check
+        temperature=0.5
+    ),
+    "warm": dict(
+        sentence_max=22,
+        wpm=155,
+        temperature=0.6
+    ),
+    "newswire": dict(
+        sentence_max=20,
+        wpm=175,
+        temperature=0.3
+    ),
+}
 
 SCRIPT_PROMPT_TMPL = """You are the narrator for "Tech Brief AI" — a daily Instagram reel delivering 5 tech headlines in under 60 seconds.
 
-Your job: Combine the following 5 short summaries into ONE continuous voiceover script for ElevenLabs input.
+Write ONE continuous voiceover script for ElevenLabs input using the items below.
 
-Guidelines:
-- Tone: Conversational, friendly, confident — like you’re talking to a friend who loves tech.
-- Style: Short sentences. Clear and punchy.
-- Flow: Use smooth transitions like "Next up..." or "In other news..."
-- Length: 40–60 seconds total (~150–180 words). Stay under 180 words.
-- End with: "Follow Tech Brief AI for tomorrow’s top tech stories."
-- No robotic phrasing or filler words.
-- No long intros — jump straight into the first headline.
+Hard rules:
+- Start with a catchy HOOK (1 short line).
+- Then jump straight into headline 1. No setup.
+- Tone: conversational, confident, modern.
+- Sentences: short and punchy. Prefer commas, em-dashes, and ellipses for rhythm.
+- Use natural emphasis with wording; do NOT include bracketed stage directions.
+- Transitions: vary them (“Next up—”, “Meanwhile—”, etc.).
+- Keep it 150–180 words total. Under 180 words. Avoid lists; this is a flowing script.
+- End with a short CTA line.
 
-Here are today’s summaries:
+Headlines:
 {summaries_block}
 
-Return only the final script, no preamble.
+Return only the script text. No preamble, no numbering, no quotes.
 """
 
-
-load_dotenv()
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))  
-
-
 def make_summaries_block(summaries: list[str]) -> str:
-    # Preface each for rhythm; summaries already short
-    lines = []
-    for i, s in enumerate(summaries[:5], 1):
-        lines.append(f"{i}. {s.strip()}")
-    return "\n".join(lines)
+    # Keep them tight and dedup very similar lines
+    seen = set()
+    clean = []
+    for s in summaries[:5]:
+        t = re.sub(r"\s+", " ", s).strip()
+        if t and t.lower() not in seen:
+            seen.add(t.lower())
+            clean.append(t)
+    return "\n".join(f"- {s}" for s in clean)
 
+def _count_words(text: str) -> int:
+    return len(re.findall(r"\w+", text))
 
-def generate_instagram_script(state: NewsAgentState) -> NewsAgentState:
-    if not state.summaries or len(state.summaries) < 3:
-        raise ValueError("Need 3 summaries to build the Instagram script.")
+def _enforce_caps(text: str, max_words: int = 180) -> str:
+    words = text.strip().split()
+    if len(words) <= max_words:
+        return text.strip()
+    # Trim gracefully at a sentence boundary if possible
+    trimmed = " ".join(words[:max_words])
+    trimmed = re.sub(r"([.!?])\s+\S*$", r"\1", trimmed)  # try to end on punctuation
+    return trimmed.strip()
 
-    prompt = SCRIPT_PROMPT_TMPL.format(
-        summaries_block=make_summaries_block(state.summaries)
-    )
+def _postprocess_for_tts(text: str) -> str:
+    # Normalize spaces, ensure readable line breaks for breath points
+    text = re.sub(r"\s+", " ", text).strip()
+    # Add soft breaks after transitions/em-dashes
+    text = text.replace("— ", "— ")
+    # Optional: insert line breaks after ~3 sentences to help pacing in editors
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    blocks, buf, count = [], [], 0
+    for s in sentences:
+        buf.append(s)
+        count += 1
+        if count >= 3:
+            blocks.append(" ".join(buf))
+            buf, count = [], 0
+    if buf:
+        blocks.append(" ".join(buf))
+    return "\n".join(blocks)
 
-    response = client.chat.completions.create(
-            model="gpt-4o-mini",  # or "gpt-3.5-turbo"
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5
-        )
-    if response.choices[0].message.content is None:
-            raise ValueError("Error retrieving response")
+def _compose_user_prompt(summaries_block: str) -> str:
+    return SCRIPT_PROMPT_TMPL.format(summaries_block=summaries_block)
 
-    scriptGenerated = response.choices[0].message.content.strip()
-    write_script_to_file(scriptGenerated)
-    state.script_text = scriptGenerated
-    print("📝 Instagram script ready.")
-    return state
+def _generate_with_retries(messages, model="gpt-4o-mini", temperature=0.5, max_attempts=3):
+    backoff = 1.0
+    last_err = None
+    for _ in range(max_attempts):
+        try:
+            resp = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+            )
+            content = (resp.choices[0].message.content or "").strip()
+            if content:
+                return content
+            last_err = ValueError("Empty content.")
+        except Exception as e:
+            last_err = e
+        time.sleep(backoff)
+        backoff *= 1.7
+    raise RuntimeError(f"OpenAI completion failed after retries: {last_err}")
+
+def _inject_hook_transitions_cta(text: str, hook: str, cta: str) -> str:
+    # Ensure we have a hook at the top and a CTA at the end, without doubling if model added them
+    t = text.strip()
+    if not t.lower().startswith(hook[:10].lower()):
+        t = f"{hook}\n{t}"
+    if cta.lower() not in t.lower():
+        if not t.endswith((".", "!", "?")):
+            t += "."
+        t += f"\n{cta}"
+    return t
 
 def write_script_to_file(script_text: str) -> str:
     out_dir = os.getenv("SCRIPT_OUTPUT_DIR", "output")
     os.makedirs(out_dir, exist_ok=True)
-    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")  
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     filename = f"{date_str}_tech_brief_ai_script.txt"
     path = os.path.join(out_dir, filename)
     with open(path, "w", encoding="utf-8") as f:
         f.write(script_text)
     return path
+
+def generate_instagram_script(state: NewsAgentState, style: str = "punchy") -> NewsAgentState:
+    if not state.summaries or len(state.summaries) < 3:
+        raise ValueError("Need at least 3 summaries to build the Instagram script.")
+
+    preset = STYLE_PRESETS.get(style, STYLE_PRESETS["punchy"])
+    hook = random.choice(HOOKS)
+    cta = random.choice(CTAS)
+
+    prompt = _compose_user_prompt(make_summaries_block(state.summaries))
+
+    # Generate two takes; pick the one closest to 165 words
+    takes = []
+    for _ in range(2):
+        raw = _generate_with_retries(
+            messages=[{"role": "user", "content": prompt}],
+            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+            temperature=float(os.getenv("SCRIPT_TEMPERATURE", preset["temperature"])),
+        )
+        candidate = _inject_hook_transitions_cta(raw, hook, cta)
+        candidate = _postprocess_for_tts(candidate)
+        candidate = _enforce_caps(candidate, max_words=180)
+        takes.append(candidate)
+
+    # Choose the take whose length (in words) is closest to target window center (≈165 words)
+    target = 165
+    best = min(takes, key=lambda t: abs(_count_words(t) - target))
+
+    path = write_script_to_file(best)
+    state.script_text = best
+    print(f"📝 Instagram script ready. Words={_count_words(best)} | Style={style}")
+    return state
