@@ -44,7 +44,7 @@ def _strip_code_fences(s: str) -> str:
 def generate_video_headlines(state: NewsAgentState) -> NewsAgentState:
     if not state.script_text:
         raise ValueError("script_text is empty. Run generate_instagram_script first.")
-    if not state.summaries or len(state.summaries) < 5:
+    if not state.summaries or len(state.summaries) < 3:
         raise ValueError("Need 5 summaries to generate headlines.")
 
     prompt = HEADLINE_PROMPT_TMPL.format(
