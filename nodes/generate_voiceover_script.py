@@ -82,14 +82,6 @@ def make_summaries_block(summaries: list[str]) -> str:
 def _count_words(text: str) -> int:
     return len(re.findall(r"\w+", text))
 
-def _enforce_caps(text: str, max_words: int = 180) -> str:
-    words = text.strip().split()
-    if len(words) <= max_words:
-        return text.strip()
-    # Trim gracefully at a sentence boundary if possible
-    trimmed = " ".join(words[:max_words])
-    trimmed = re.sub(r"([.!?])\s+\S*$", r"\1", trimmed)  # try to end on punctuation
-    return trimmed.strip()
 
 def _postprocess_for_tts(text: str) -> str:
     # Normalize spaces, ensure readable line breaks for breath points
@@ -173,7 +165,6 @@ def generate_instagram_script(state: NewsAgentState, style: str = "punchy") -> N
         )
         candidate = _inject_hook_transitions_cta(raw, hook, cta)
         candidate = _postprocess_for_tts(candidate)
-        candidate = _enforce_caps(candidate, max_words=180)
         takes.append(candidate)
 
     # Choose the take whose length (in words) is closest to target window center (≈165 words)
