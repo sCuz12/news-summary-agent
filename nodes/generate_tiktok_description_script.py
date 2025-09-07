@@ -7,7 +7,7 @@ import os, time
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-TIKTOK_PROMPT = """You are writing a TikTok video caption for a daily tech news reel.
+TIKTOK_PROMPT = """You are writing a TikTok video caption for a daily tech news reel branded with tech and coffee.
 
 Guidelines:
 - Tone: punchy, modern, trend-friendly.
