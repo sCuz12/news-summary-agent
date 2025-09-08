@@ -48,19 +48,20 @@ STYLE_PRESETS = {
     ),
 }
 
-SCRIPT_PROMPT_TMPL = """You are the narrator for "Tech Brief AI" — a daily Instagram reel delivering 5 tech headlines in under 60 seconds.
+SCRIPT_PROMPT_TMPL = """You are the narrator for "Tech Brief AI" — daily 5 tech headlines in under 60 seconds.
 
-Write ONE continuous voiceover script for ElevenLabs input using the items below.
+Write ONE continuous voiceover script for ElevenLabs using the items below.
 
-Hard rules:
-- Start with a catchy HOOK (1 short line).
-- Then jump straight into headline 1. No setup.
+Hard rules (optimize for hooks & retention):
+- Start with a *punchy HOOK* as a single short line: a bold claim or provocative question that teases stakes (e.g., “Apple just changed everything.” / “What if search died today?”).
+- Immediately jump into headline 1. No setup, no greeting.
+- Within the first two lines, *tease a surprise at the end* (“…and the last one’s wild.”) to keep viewers watching.
 - Tone: conversational, confident, modern.
-- Sentences: short and punchy. Prefer commas, em-dashes, and ellipses for rhythm.
-- Use natural emphasis with wording; do NOT include bracketed stage directions.
-- Transitions: vary them (“Next up—”, “Meanwhile—”, etc.).
-- Keep it 150–180 words total. Under 180 words. Avoid lists; this is a flowing script.
-- End with a short CTA line.
+- Sentences: short and punchy. Prefer commas, em dashes, ellipses for rhythm.
+- Transitions: vary them (“Next up—”, “Meanwhile—”, “Also—”, “Finally—”).
+- Keep total length 150–175 words (never exceed 180). No lists or numbering; make it flow.
+- Do NOT include bracketed stage directions or speaker labels.
+- End with a sharp CTA that reinforces the brand ritual: “Follow @techbrief.ai — 5 stories, 60 seconds. Coffee ready?”
 
 Headlines:
 {summaries_block}
@@ -163,8 +164,8 @@ def generate_instagram_script(state: NewsAgentState, style: str = "punchy") -> N
             model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             temperature=float(os.getenv("SCRIPT_TEMPERATURE", preset["temperature"])),
         )
-        candidate = _inject_hook_transitions_cta(raw, hook, cta)
-        candidate = _postprocess_for_tts(candidate)
+        # candidate = _inject_hook_transitions_cta(raw, hook, cta)
+        candidate = _postprocess_for_tts(raw)
         takes.append(candidate)
 
     # Choose the take whose length (in words) is closest to target window center (≈165 words)

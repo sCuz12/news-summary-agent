@@ -42,3 +42,26 @@ def clear_seen_urls() -> None:
     """Clear all stored URLs (useful for dev/testing)."""
     _seen_urls.clear()
     _save_seen_urls()
+import os
+from datetime import datetime, timezone
+
+def save_text_to_file(path: str, text: str) -> str:
+    """
+    Save text content to a file, ensuring directories exist.
+
+    Args:
+        path (str): Full file path, e.g. "output/descriptions/social/tiktok/name.txt"
+        text (str): Content to write
+
+    Returns:
+        str: The full path of the saved file
+    """
+    # Ensure parent directories exist
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    # Write content
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text.strip())
+
+    print(f"✅ Saved file at {path}")
+    return path
