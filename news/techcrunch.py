@@ -5,7 +5,10 @@ from state import Article
 from bs4 import BeautifulSoup
 from typing import List
 import random
+import os
+from utils.helper import download_image 
 
+ASSETS_DIR = os.getenv('ASSETS_DIR',"assets")
 class TechCrunchScraper(BaseScraper):
     def matches(self, url: str) -> bool:
         return "techcrunch.com" in url
@@ -42,6 +45,12 @@ class TechCrunchScraper(BaseScraper):
                 content_html = page.inner_html('.entry-content.wp-block-post-content-is-layout-constrained')
                 soup = BeautifulSoup(content_html, 'html.parser')
 
+                banner = page.locator("figure.wp-block-post-featured-image img")
+                image_src = banner.get_attribute("src")
+                #download the image to folder
+                if isinstance(image_src,str):
+                    download_image(image_src,ASSETS_DIR)
+
                 title = page.title()
                 full_text = "\n".join(p.get_text(strip=True) for p in soup.find_all('p'))
 
@@ -54,4 +63,5 @@ class TechCrunchScraper(BaseScraper):
                 print(f"⚠️ Skipped article {url} due to error: {e}")
                 continue
 
+        exit()
         return articles

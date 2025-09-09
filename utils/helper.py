@@ -2,6 +2,8 @@
 import json
 import os
 from pathlib import Path
+import os, re, time, random, hashlib, requests
+from urllib.parse import urljoin, urlparse
 
 # Location to persist seen URLs between runs
 SEEN_URLS_FILE = Path(".seen_urls.json")
@@ -65,3 +67,28 @@ def save_text_to_file(path: str, text: str) -> str:
 
     print(f"✅ Saved file at {path}")
     return path
+
+def download_image(url: str, dest_dir: str) -> str:
+    today = datetime.now()
+    datestring = today.strftime("%Y-%m-%d")
+    dest_dir = os.path.join(dest_dir,datestring)
+    os.makedirs(dest_dir, exist_ok=True)
+    try:
+        r = requests.get(url, timeout=10, stream=True, headers={"User-Agent":"TechBriefBot/1.0"})
+        ct = r.headers.get("content-type","").lower()
+        if r.status_code != 200 or "image" not in ct:
+            return ""
+        data = r.content
+        h = hashlib.sha1(data).hexdigest()[:12]
+        ext = {
+            "image/jpeg": ".jpg",
+            "image/jpg": ".jpg",
+            "image/png": ".png",
+            "image/webp": ".webp"
+        }.get(ct.split(";")[0], os.path.splitext(urlparse(url).path)[1] or ".jpg")
+        path = os.path.join(dest_dir, f"img_{h}{ext}")
+        with open(path, "wb") as f:
+            f.write(data)
+        return path
+    except Exception:
+        return ""
