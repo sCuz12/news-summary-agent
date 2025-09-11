@@ -63,5 +63,4 @@ class TechCrunchScraper(BaseScraper):
                 print(f"⚠️ Skipped article {url} due to error: {e}")
                 continue
 
-        exit()
         return articles
