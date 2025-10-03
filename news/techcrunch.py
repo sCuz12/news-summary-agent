@@ -7,8 +7,11 @@ from typing import List
 import random
 import os
 from utils.helper import download_image 
+from utils.helper import is_url_seen
 
 ASSETS_DIR = os.getenv('ASSETS_DIR',"assets")
+ARTICLES_PER_SOURCE = int(os.getenv("ARTICLES_PER_SOURCE", "5"))
+
 class TechCrunchScraper(BaseScraper):
     def matches(self, url: str) -> bool:
         return "techcrunch.com" in url
@@ -30,13 +33,20 @@ class TechCrunchScraper(BaseScraper):
 
         random.shuffle(urls)
 
-        articles = []
+        articles:List[Article] = [] 
 
-        for url in urls[:5]:
+        for candidate in urls:
+            if len(articles) >= ARTICLES_PER_SOURCE:
+                break
+            # skip already seen BEFORE visiting to save time
+            if is_url_seen(candidate):
+                print(f"URL {candidate} is already seen.. skipping scraping")
+                continue
             try:
-                page.goto(url, timeout=30000)
+                print(candidate)
+                page.goto(candidate, timeout=30000)
 
-                # Optional: accept cookies
+                # Optional cookie click
                 try:
                     page.click('text="Consent"', timeout=3000)
                 except:
@@ -47,20 +57,19 @@ class TechCrunchScraper(BaseScraper):
 
                 banner = page.locator("figure.wp-block-post-featured-image img")
                 image_src = banner.get_attribute("src")
-                #download the image to folder
-                if isinstance(image_src,str):
-                    download_image(image_src,ASSETS_DIR)
+                if isinstance(image_src, str):
+                    download_image(image_src, ASSETS_DIR)
 
                 title = page.title()
                 full_text = "\n".join(p.get_text(strip=True) for p in soup.find_all('p'))
 
                 articles.append(Article(
                     title=title.strip(),
-                    url=url,
+                    url=candidate,
                     content=full_text
                 ))
             except Exception as e:
-                print(f"⚠️ Skipped article {url} due to error: {e}")
+                print(f"⚠️ Skipped article {candidate} due to error: {e}")
                 continue
 
         return articles

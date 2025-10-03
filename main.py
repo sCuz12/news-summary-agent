@@ -1,5 +1,4 @@
 import sys 
-from pydantic import BaseModel
 from state import NewsAgentState
 from topics import get_sources_for_topic
 from langgraph.graph import StateGraph
