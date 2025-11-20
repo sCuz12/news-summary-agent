@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))  
 
+
 def summarize_articles(state: NewsAgentState) -> NewsAgentState:
     print(f"🧠 Summarizing {len(state.articles)} articles...")
 
@@ -15,16 +16,20 @@ def summarize_articles(state: NewsAgentState) -> NewsAgentState:
 
     for article in state.articles:
         prompt = (
-            "You're an assistant helping someone stay informed via a daily digest.\n"
-            "Summarize the following news article in 5-6 sentences.\n"
-            "Highlight the key takeaway, and if possible, include why it might matter or be useful for someone staying aware of important developments.\n\n"
+            "You are an assistant writing short, spoken-style tech news recaps for a daily AI-powered video brief.\n"
+            "Summarize the article below in 3–4 short sentences (max 100-120 words).\n"
+            "Each sentence should sound natural when spoken — conversational, energetic, and clear.\n"
+            "Focus on what happened, who’s involved, and why it matters to the audience.\n"
+            "Use strong verbs and emotional color when appropriate (e.g., 'shocked', 'surprised', 'bold move').\n"
+            "Avoid jargon or filler. Keep sentences punchy and rhythmic, like a TikTok/Instagram tech host talking to camera.\n"
+            "If there's a twist, hint at it (‘but here’s the catch...’).\n\n"
             f"Title: {article.title}\n"
             f"Content: {article.content}\n\n"
-            "Summary:"
+            "Spoken Summary:"
         )
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",  # or "gpt-3.5-turbo"
+            model=os.getenv("OPENAI_MODEL","gpt-4o-mini"), 
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5
         )
