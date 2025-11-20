@@ -8,6 +8,9 @@ OUTPUT_PATH = "output/voiceovers_audio"
 
 model_id = "eleven_turbo_v2_5"
 
+VOICE_STABILITY = 0.35
+VOICE_SIMILARITY_BOOST = 0.85
+VOICE_STYLE = 0.65
 def generate_elevenlabs_script(state : NewsAgentState):
 
     eapiKey = os.getenv('ELEVENLABS_API_KEY')
@@ -30,9 +33,9 @@ def generate_elevenlabs_script(state : NewsAgentState):
     out_path = os.path.join(OUTPUT_PATH, f"voiceover_{ts}.mp3")
     
     voice_settings = VoiceSettings(
-        stability=0.25,          # lower = more expressive, higher = steadier
-        similarity_boost=0.8,    # how closely to mimic the base voice
-        style=0.6,               # higher = more “performative”
+        stability=VOICE_STABILITY,          # lower = more expressive, higher = steadier
+        similarity_boost=VOICE_SIMILARITY_BOOST,    # how closely to mimic the base voice
+        style=VOICE_STABILITY,               # higher = more “performative”
         use_speaker_boost=True   # a bit more presence/punch
     )
 

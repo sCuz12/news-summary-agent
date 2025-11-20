@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+model  = os.getenv("OPENAI_MODEL")
 
 # ===== Prosody-aware building blocks =====
 HOOKS = [
@@ -48,25 +49,30 @@ STYLE_PRESETS = {
     ),
 }
 
-SCRIPT_PROMPT_TMPL = """You are the narrator for "Tech Brief AI" — daily 5 tech headlines in under 60 seconds.
+SCRIPT_PROMPT_TMPL = """You are the narrator for "Tech Brief AI" — a daily short-form tech news brief.
 
-Write ONE continuous voiceover script for ElevenLabs using the items below.
+Write ONE continuous voiceover script optimized for TikTok/Instagram/YouTube Shorts and ElevenLabs natural speech synthesis.
 
-Hard rules (optimize for hooks & retention):
-- Start with a *punchy HOOK* as a single short line: a bold claim or provocative question that teases stakes (e.g., “Apple just changed everything.” / “What if search died today?”).
-- Immediately jump into headline 1. No setup, no greeting.
-- Within the first two lines, *tease a surprise at the end* (“…and the last one’s wild.”) to keep viewers watching.
-- Tone: conversational, confident, modern.
-- Sentences: short and punchy. Prefer commas, em dashes, ellipses for rhythm.
-- Transitions: vary them (“Next up—”, “Meanwhile—”, “Also—”, “Finally—”).
-- Keep total length 150–175 words (never exceed 180). No lists or numbering; make it flow.
-- Do NOT include bracketed stage directions or speaker labels.
-- End with a sharp CTA that reinforces the brand ritual: “Follow @techbrief.ai — 5 stories, 60 seconds. Coffee ready?”
+Rules for structure and flow:
+- There are exactly {headline_count} headlines.
+- Use transitions *in order*: 
+  - Between story 1→2: "Next up—"
+  - Between story 2→3: "Meanwhile—"
+  - Between story 3→4: "Also—"
+  - Before the last story: "Finally—"
+- Start with a BOLD HOOK under 10 words that sparks curiosity.
+- Each headline gets 2–3 short sentences: what happened, who’s involved, why it matters.
+- Tone: conversational, confident, slightly witty — like a sharp TikTok news host.
+- Keep sentences 6–12 words max. Use commas, em dashes, ellipses, or rhetorical questions for rhythm.
+- Use strong but varied emotion words (surprising, bold, clever, dramatic, unexpected).
+- Add one micro-cliffhanger or “but here’s the twist…” per story.
+- Stay under 165 words total.
+- End with the daily CTA: “Follow techbrief.ai — 5 stories, 60 seconds. Coffee ready?”
 
 Headlines:
 {summaries_block}
 
-Return only the script text. No preamble, no numbering, no quotes.
+Return only the narration text. No preamble, numbering, or quotes.
 """
 
 def make_summaries_block(summaries: list[str]) -> str:
@@ -102,8 +108,8 @@ def _postprocess_for_tts(text: str) -> str:
         blocks.append(" ".join(buf))
     return "\n".join(blocks)
 
-def _compose_user_prompt(summaries_block: str) -> str:
-    return SCRIPT_PROMPT_TMPL.format(summaries_block=summaries_block)
+def _compose_user_prompt(summaries_block: str,headline_counts: int) -> str:
+    return SCRIPT_PROMPT_TMPL.format(summaries_block=summaries_block,headline_count=headline_counts)
 
 def _generate_with_retries(messages, model="gpt-4o-mini", temperature=0.5, max_attempts=3):
     backoff = 1.0
@@ -125,16 +131,6 @@ def _generate_with_retries(messages, model="gpt-4o-mini", temperature=0.5, max_a
         backoff *= 1.7
     raise RuntimeError(f"OpenAI completion failed after retries: {last_err}")
 
-def _inject_hook_transitions_cta(text: str, hook: str, cta: str) -> str:
-    # Ensure we have a hook at the top and a CTA at the end, without doubling if model added them
-    t = text.strip()
-    if not t.lower().startswith(hook[:10].lower()):
-        t = f"{hook}\n{t}"
-    if cta.lower() not in t.lower():
-        if not t.endswith((".", "!", "?")):
-            t += "."
-        t += f"\n{cta}"
-    return t
 
 def write_script_to_file(script_text: str) -> str:
     out_dir = os.getenv("SCRIPT_OUTPUT_DIR", "output")
@@ -147,14 +143,14 @@ def write_script_to_file(script_text: str) -> str:
     return path
 
 def generate_instagram_script(state: NewsAgentState, style: str = "punchy") -> NewsAgentState:
-    if not state.summaries or len(state.summaries) < 3:
+    summaries_count = len(state.summaries)
+
+    if not state.summaries or summaries_count < 3:
         raise ValueError("Need at least 3 summaries to build the Instagram script.")
 
     preset = STYLE_PRESETS.get(style, STYLE_PRESETS["punchy"])
-    hook = random.choice(HOOKS)
-    cta = random.choice(CTAS)
 
-    prompt = _compose_user_prompt(make_summaries_block(state.summaries))
+    prompt = _compose_user_prompt(make_summaries_block(state.summaries),summaries_count)
 
     # Generate two takes; pick the one closest to 165 words
     takes = []

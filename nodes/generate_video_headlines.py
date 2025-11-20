@@ -53,7 +53,7 @@ def generate_video_headlines(state: NewsAgentState) -> NewsAgentState:
     )
 
     resp = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=os.getenv("OPENAI_MODEL","gpt-4o-mini"),
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
     )
